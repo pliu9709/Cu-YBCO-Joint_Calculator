@@ -1,5 +1,5 @@
-# app.py
 import os
+import io
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import font_manager
@@ -215,7 +215,7 @@ def run_model(
     # 总焦耳热
     qv_vals = qv_func(T_sol, x)
     qvA_vals = qv_vals * A_vals
-    Q_joule_cu = np.trapezoid(qvA_vals, x)
+    Q_joule_cu = np.trapz(qvA_vals, x)
     Q_joule_total = Q_joule_cu + Q_joint
 
     # 占比图数据（YBCO段）
@@ -233,29 +233,56 @@ def run_model(
     f_c = G_c / G_sum
     f_s = G_s / G_sum
 
-    # 图1：温度
-    fig1 = plt.figure(figsize=(6,4))
-    plt.plot(x, T_sol, linewidth=2)
-    plt.axvline(L_cu, linestyle="--", color="gray", label="Cu–YBCO 接头")
-    plt.xlabel("x (m)")
-    plt.ylabel("T (K)")
-    plt.title("沿程温度分布 T(x)")
-    plt.grid(True)
-    plt.legend()
-    plt.tight_layout()
+    # ==========================
+    # 图1：温度（统一排版参数，保证两图视觉一致）
+    # ==========================
+    fig1, ax1 = plt.subplots(figsize=(7.5, 4.2), dpi=150, constrained_layout=False)
+    ax1.plot(x, T_sol, linewidth=2)
+    ax1.axvline(L_cu, linestyle="--", color="gray", label="Cu–YBCO 接头")
+    ax1.set_xlabel("x (m)")
+    ax1.set_ylabel("T (K)")
+    ax1.set_title("沿程温度分布 T(x)")
+    ax1.grid(True)
 
-    # 图2：占比
-    fig2 = plt.figure(figsize=(6,4))
-    plt.plot(xh, f_h, label="Hastelloy")
-    plt.plot(xh, f_c, label="Cu in tape")
-    plt.plot(xh, f_s, label="SS304 shunt")
-    plt.xlabel("x (m)")
-    plt.ylabel("Heat conduction fraction")
-    plt.ylim(0, 1)
-    plt.title("YBCO 段各材料导热占比（沿长度）")
-    plt.grid(True)
-    plt.legend()
-    plt.tight_layout()
+    # legend 固定位置/大小，避免挤压绘图区导致两张图比例不一致
+    ax1.legend(loc="upper right", frameon=True)
+
+    # 关键：两张图用同一组边距（强制一致）
+    fig1.subplots_adjust(left=0.10, right=0.98, top=0.88, bottom=0.18)
+
+    # ==========================
+    # 图2：占比（同样的边距 + legend 固定）
+    # ==========================
+    fig2, ax2 = plt.subplots(figsize=(7.5, 4.2), dpi=150, constrained_layout=False)
+    ax2.plot(xh, f_h, label="Hastelloy")
+    ax2.plot(xh, f_c, label="Cu in tape")
+    ax2.plot(xh, f_s, label="SS304 shunt")
+    ax2.set_xlabel("x (m)")
+    ax2.set_ylabel("Heat conduction fraction")
+    ax2.set_ylim(0, 1)
+    ax2.set_title("YBCO 段各材料导热占比（沿长度）")
+    ax2.grid(True)
+
+    ax2.legend(loc="upper left", frameon=True)
+
+    # 同一组边距（强制一致）
+    fig2.subplots_adjust(left=0.10, right=0.98, top=0.88, bottom=0.18)
+
+    # ===== 固定像素导出（保证两张图最终显示大小完全一致）=====
+    def fig_to_png_bytes(fig, w_px=1200, h_px=650, dpi=150):
+        buf = io.BytesIO()
+        fig.set_dpi(dpi)
+        fig.set_size_inches(w_px / dpi, h_px / dpi)  # 强制同宽同高
+        fig.savefig(buf, format="png", dpi=dpi, bbox_inches=None, pad_inches=0.0)
+        buf.seek(0)
+        return buf.getvalue()
+
+    img_T = fig_to_png_bytes(fig1)
+    img_frac = fig_to_png_bytes(fig2)
+
+    # 释放 matplotlib 资源，避免越跑越慢/串台
+    plt.close(fig1)
+    plt.close(fig2)
 
     return {
         "x": x,
@@ -264,15 +291,18 @@ def run_model(
         "Q_cold": Q_cold,
         "Q_joint": Q_joint,
         "Q_joule_total": Q_joule_total,
-        "fig_T": fig1,
-        "fig_frac": fig2,
+        "img_T": img_T,
+        "img_frac": img_frac,
     }
+
 
 # ==========================
 # Streamlit UI
 # ==========================
 st.set_page_config(page_title="Cu–YBCO 热分析", layout="wide")
 st.title("Cu–YBCO 引线稳态导热 + 焦耳热（含接头电阻 & 带材并联数）")
+st.write("BUILD: 2025-12-29-01")
+
 
 with st.sidebar:
     st.header("输入参数")
@@ -333,22 +363,32 @@ if run_btn:
                 N=N,
             )
 
-        col1, col2 = st.columns([1, 1])
+        # ==========================
+        # 页面展示：统一宽度（关键：不要把图1放在列里）
+        # ==========================
 
-        with col1:
+        # 结果区（更紧凑：两列metric）
+        with st.container(border=True):
             st.subheader("计算结果")
-            st.metric("冷端漏热 Q_cold (W)", f"{out['Q_cold']:.6f}")
-            st.metric("接头焦耳热 Q_joint (W)", f"{out['Q_joint']:.6f}")
-            st.metric("总焦耳热 Q_joule_total (W)", f"{out['Q_joule_total']:.6f}")
-            st.metric("热端热流 Q_hot (W)", f"{out['Q_hot']:.6f}")
+            m1, m2 = st.columns(2)
+            with m1:
+                st.metric("冷端漏热 Q_cold (W)", f"{out['Q_cold']:.6f}")
+                st.metric("总焦耳热 Q_joule_total (W)", f"{out['Q_joule_total']:.6f}")
+            with m2:
+                st.metric("接头焦耳热 Q_joint (W)", f"{out['Q_joint']:.6f}")
+                st.metric("热端热流 Q_hot (W)", f"{out['Q_hot']:.6f}")
 
-        with col2:
+        # 图1（全宽）
+        with st.container(border=True):
             st.subheader("图 1：沿程温度分布 T(x)")
-            st.pyplot(out["fig_T"], clear_figure=False)
+            st.image(out["img_T"], use_container_width=True)
 
-        st.subheader("图 2：YBCO 段材料导热占比（沿长度）")
-        st.pyplot(out["fig_frac"], clear_figure=False)
+        # 图2（全宽）
+        with st.container(border=True):
+            st.subheader("图 2：YBCO 段材料导热占比（沿长度）")
+            st.image(out["img_frac"], use_container_width=True)
 
         st.caption("输入单位：A_cu/A_shunt 用 mm²，R_joint 用 μΩ，L_joint 用 cm。内部自动换算为 SI 单位。")
+
 else:
     st.info("在左侧输入参数，然后点 **开始计算**。")
