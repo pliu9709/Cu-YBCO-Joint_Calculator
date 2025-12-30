@@ -233,7 +233,6 @@ TEXT = {
     # History
     "hist_title": {"cn": "运行历史（对比/导出）", "en": "Run History (Compare/Export)"},
     "hist_no": {"cn": "还没有历史记录。每次点击「开始计算」都会自动记录到这里。", "en": "No history yet. Each run will be recorded here."},
-    "hist_tip": {"cn": "提示：你可以在外部用 Excel / Python 对这张表做更复杂的对比与统计。", "en": "Tip: Use Excel/Python for deeper comparison and statistics."},
     "export_all": {"cn": "⬇️ 导出历史 CSV", "en": "⬇️ Export history CSV"},
     "export_key": {"cn": "⬇️ 仅导出关键结果 CSV", "en": "⬇️ Export key results CSV"},
     "clear_hist": {"cn": "🧹 清空历史", "en": "🧹 Clear history"},
@@ -1012,3 +1011,4 @@ with tab_about:
 st.markdown("---")
 st.caption(t("copyright"))
 st.caption(t("center"))
+
