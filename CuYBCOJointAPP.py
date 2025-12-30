@@ -227,6 +227,7 @@ TEXT = {
     # Report
     "report_title": {"cn": "导出 PDF 计算报告", "en": "Export PDF Report"},
     "report_no": {"cn": "请先完成一次计算，然后这里会出现「导出 PDF」按钮。", "en": "Run once first; then the “Export PDF” button will appear here."},
+    "hist_tip": {"cn": "提示：结果仅做参考。", "en": "Tip: For reference only"},
     "report_btn": {"cn": "📄 导出 PDF 报告", "en": "📄 Export PDF"},
     "report_note": {"cn": "报告仅作参考", "en": "For reference only"},
     "font_warn": {"cn": "未找到 fonts/NotoSansSC-Regular.ttf，PDF 中文可能无法显示。请检查项目目录。", "en": "fonts/NotoSansSC-Regular.ttf not found. Chinese may not render in PDF."},
@@ -1011,4 +1012,5 @@ with tab_about:
 st.markdown("---")
 st.caption(t("copyright"))
 st.caption(t("center"))
+
 
